@@ -140,7 +140,7 @@ function putDataInSchema(header, item, schema){
 			if (item) { 
 				schema[headerName] = Number(item);
 			} else { 
-				schema[headerName] = item;
+				schema[headerName] = null;
 			}
 		}
 	}else{
