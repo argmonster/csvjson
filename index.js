@@ -6,7 +6,7 @@ module.exports = {
 	toObject : function(data){
 		var content = getContentIfFile(data);
 		content = content.split(/[\n\r]+/ig);
-		var headers = content.shift().split(','),
+		var headers = processHeaders(content),
 			hashData = [];
 		content.forEach(function(item){
 			if(item){
@@ -70,7 +70,7 @@ module.exports = {
 	toColumnArray : function(data){
 		var content = getContentIfFile(data);
 		content = content.split(/[\n\r]+/ig);
-		var headers = content.shift().split(','),
+		var headers = processHeaders(content),
 			hashData = {};
 		headers.forEach(function(item){
 			hashData[item] = [];
@@ -89,7 +89,7 @@ module.exports = {
 	toSchemaObject : function(data){
 		var content = getContentIfFile(data);
 		content = content.split(/[\n\r]+/ig);
-		var headers = content.shift().split(','),
+		var headers = processHeaders(content),
 			hashData = [];
 
 		content.forEach(function(item){
@@ -104,6 +104,10 @@ module.exports = {
 		});
 		return outputSave(hashData);
 	}
+}
+
+function processHeaders(data) { 
+	return data.shift().split(',');
 }
 
 function putDataInSchema(header, item, schema){
