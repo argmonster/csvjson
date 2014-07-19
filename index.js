@@ -136,7 +136,12 @@ function putDataInSchema(header, item, schema){
 			schema[headerName].push(item);	
 		}else if(match.indexOf('+') !== -1){
 			var headerName = header.replace(/\+/ig,"");
-			schema[headerName] = Number(item);
+			item = trimQuote(item);
+			if (item) { 
+				schema[headerName] = Number(item);
+			} else { 
+				schema[headerName] = item;
+			}
 		}
 	}else{
 		schema[header] = trimQuote(item);
