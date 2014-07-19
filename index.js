@@ -5,9 +5,6 @@ module.exports = {
 
 	toObject : function(data){
 		var content = getContentIfFile(data);
-		if(!content || typeof content !== "string"){
-			throw new Error("invalid data");
-		}
 		content = content.split(/[\n\r]+/ig);
 		var headers = content.shift().split(','),
 			hashData = [];
@@ -26,9 +23,6 @@ module.exports = {
 
 	toArray : function(data){
 		var content = getContentIfFile(data);
-		if(!content || typeof content !== "string"){
-			throw new Error("invalid data");
-		}
 		content = content.split(/[\n\r]+/ig);
 		var arrayData = [];	
 		content.forEach(function(item){
@@ -75,9 +69,6 @@ module.exports = {
 
 	toColumnArray : function(data){
 		var content = getContentIfFile(data);
-		if(!content || typeof content !== "string"){
-			throw new Error("invalid data");
-		}
 		content = content.split(/[\n\r]+/ig);
 		var headers = content.shift().split(','),
 			hashData = {};
@@ -97,9 +88,6 @@ module.exports = {
 
 	toSchemaObject : function(data){
 		var content = getContentIfFile(data);
-		if(!content || typeof content !== "string"){
-			throw new Error("invalid data");
-		}
 		content = content.split(/[\n\r]+/ig);
 		var headers = content.shift().split(','),
 			hashData = [];
@@ -148,7 +136,7 @@ function getContentIfFile(filepath){
 	if (fs.existsSync(filepath)) {
         return fs.readFileSync(filepath, 'utf8');
     }
-    return null;
+	throw new Error("invalid file path");
 }
 
 
