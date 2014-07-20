@@ -5,119 +5,107 @@ module.exports = {
 
 	toObject : function(data){
 		var content = getContentIfFile(data);
-		content = content.split(/[\n\r]+/ig);
-		var headers = processHeaders(content),
-			hashData = [];
-		content.forEach(function(item){
-			if(item){
-				item = item.split(',');
-				var hashItem = {};
-				headers.forEach(function(headerItem, index){
-					hashItem[headerItem] = trimQuote(item[index]);
-				});
-				hashData.push(hashItem);
-			}
-		});
+		var hashData = deserialize(content,true, false);
 		return outputSave(hashData);
 	},
 
 	toArray : function(data){
 		var content = getContentIfFile(data);
-		content = content.split(/[\n\r]+/ig);
-		var arrayData = [];	
-		content.forEach(function(item){
-			if(item){
-				item = item.split(',').map(function(cItem){
-					return trimQuote(cItem);
-				});
-				arrayData.push(item);
-			}
-		});
-		return outputSave(arrayData);
+		var hashData = deserialize(content, false, false);
+		return outputSave(hashData);
 	},
 
 	toCSV : function(data){
 		var content = getContentIfFile(data);
-		if(!content){
-			throw new Error("invalid data");
-		}
-		if(typeof content === "string"){
-			content = JSON.parse(content);
-		}	
-		if(!content.length){
-			throw new Error("invalid data");
-		}
-		var textContent = [],
-			headers = false;
-		content.forEach(function(item){
-			if(util.isArray(item)){
-				textContent.push(item.join(','));
-			}else{
-				headers = Object.keys(item).join(',');
-				var data = [];
-				for(var i in item){
-					data.push(item[i]);
-				}
-				textContent.push(data.join(','));
-			}
-		});
-		if(headers){
-			textContent.unshift(headers);
-		}
-		return outputSave(textContent.join("\n")) ;
+		content = serialize(content);
+		return outputSave(content.join("\n")) ;
 	},
 
-	toColumnArray : function(data){
+	toColumnArray: function(data) {
 		var content = getContentIfFile(data);
-		content = content.split(/[\n\r]+/ig);
-		var headers = processHeaders(content),
-			hashData = {};
-		headers.forEach(function(item){
-			hashData[item] = [];
-		});
-		content.forEach(function(item){
-			if(item){
-				item = item.split(',');
-				item.forEach(function(val, index){
-					hashData[headers[index]].push(trimQuote(val));	
-				});
-			}
-		});
+		var hashData = deserialize(content, true, true);
+		hashData = pivot(hashData);
 		return outputSave(hashData);
 	},
 
 	toSchemaObject : function(data){
 		var content = getContentIfFile(data);
-		content = content.split(/[\n\r]+/ig);
-		var headers = processHeaders(content),
-			hashData = [];
-
-		content.forEach(function(item){
-			if(item){
-				item = item.split(',');
-				var schemaObject = {};
-				item.forEach(function(val, index){
-					putDataInSchema(headers[index], val, schemaObject);
-				});
-				hashData.push(schemaObject);
-			}
-		});
+		var hashData = deserialize(content, true, true);
 		return outputSave(hashData);
 	}
 }
 
-function processHeaders(data) { 
-	return data.shift().split(',');
+function pivot(data) {
+	var out = {};
+	data.forEach(function(row) {
+		for (key in row) {
+			out[key] = out[key] || [];
+			out[key].push(row[key]);
+		}
+	});
+	return out;
 }
 
-function putDataInSchema(header, item, schema){
-	var match = header.match(/\.|\[\]|-|\+/ig);
-	if(match){
+function serialize(content) {
+	if(typeof content === "string"){
+		content = JSON.parse(content);
+	}	
+	if(!content.length){
+		throw new Error("invalid data");
+	}
+	var textContent = [],
+		headers = false;
+	content.forEach(function(item){
+		if(util.isArray(item)){
+			textContent.push(item.join(','));
+		}else{
+			headers = Object.keys(item).join(',');
+			var data = [];
+			for(var i in item){
+				data.push(item[i]);
+			}
+			textContent.push(data.join(','));
+		}
+	});
+	if(headers){
+		textContent.unshift(headers);
+	}
+	return textContent;
+}
+
+function deserialize(content, hasheaders, hasschema) {
+	content = content.split(/[\n\r]+/ig);
+	var headers = [], hashData = []; //, hashItem;
+	if (hasheaders) {
+		headers = processHeaders(content);
+	} 
+	content.forEach(function(item){
+		if(item){
+			item = item.split(/\s*,\s*/);
+			var hashItem = hasheaders ? {} : [];
+			var llength = headers.length || item.length;
+			for (var index = 0; index < llength; index++) {
+				putDataInSchema(headers[index] || index, item[index], hashItem,hasschema);
+			}
+			hashData.push(hashItem);
+		}
+	});
+	return hashData;
+}
+
+function processHeaders(data) { 
+	return data.shift().split(new RegExp(/\s*,\s*/));
+}
+
+function putDataInSchema(header, item, schema, useschema){
+	var match = header.toString().match(/\.|\[\]|-|\+/ig);
+	if(match && useschema){
 		if(match.indexOf('-') !== -1){
 			return true;
 		}else if(match.indexOf('.') !== -1){
 			var headParts = header.split('.');
 			var currentPoint = headParts.shift();
+			schema = schema || {};
 			schema[currentPoint] = schema[currentPoint] || {};
 			putDataInSchema(headParts.join("."), item, schema[currentPoint]);
 		}else if(match.indexOf('[]') !== -1){
@@ -128,10 +116,15 @@ function putDataInSchema(header, item, schema){
 			schema[headerName].push(item);	
 		}else if(match.indexOf('+') !== -1){
 			var headerName = header.replace(/\+/ig,"");
-			schema[headerName] = Number(item);
+			item = trimQuote(item);
+			if (item.toString().length) {
+				schema[headerName] = Number(item);
+			} else { 
+				schema[headerName] = null;
+			}
 		}
 	}else{
-		schema[header] = trimQuote(item);
+		schema[header] = item !== undefined ? trimQuote(item.toString()) : null;
 	}
 	return schema ;
 }
@@ -158,5 +151,5 @@ function outputSave(data){
 }
 
 function trimQuote(str){
-	return str.trim().replace(/^["|'](.*)["|']$/, '$1');
+	return str.toString().trim().replace(/^["|'](.*)["|']$/, '$1');
 }
