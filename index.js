@@ -32,6 +32,34 @@ module.exports = {
 		var content = getContentIfFile(data);
 		var hashData = deserialize(content, true, true);
 		return outputSave(hashData);
+	},
+
+	streamToObject : function(data, callback) {
+		streamDeserialize(data, true, false, callback);
+		return this;
+	},
+
+	streamToArray : function(data, callback) {
+		streamDeserialize(data, false, false, callback);
+		return this;
+	},
+
+	streamToSchemaObject : function(data, callback) {
+		streamDeserialize(data, true, true, callback);
+		return this;
+	},
+
+	streamToColumnss : function(data, callback) {
+		streamDeserialize(data, true, true, function(hashdata) {
+			hashdata = pivot(hashdata);
+			callback(hashdata);
+		});
+		return this;
+	}, 
+	
+	streamToCSV : function(data, path) {
+		streamSerialize(data, path);
+		return this;
 	}
 }
 
@@ -93,6 +121,49 @@ function deserialize(content, hasheaders, hasschema) {
 	return hashData;
 }
 
+function streamDeserialize(filepath, hasheaders, useschema, callback) {
+	var hashdata = [];
+	var stream = fs.createReadStream(filepath);
+	stream.setEncoding('utf-8');
+	stream.on('data', function(chunk) {
+		hashdata = hashdata.concat(deserialize(chunk, hasheaders, useschema));
+		if (hasheaders) { hasheaders = !hasheaders; }
+	});
+	stream.on('end', function() {
+		callback(hashdata);
+	});
+}
+
+function streamSerialize(content) {
+	if(typeof content === "string"){
+		content = JSON.parse(content);
+	}	
+	if(!content.length){
+		throw new Error("invalid data");
+	}
+	var headers = false;
+
+	var stream = fs.createWriteStream(filepath);
+	stream.once('open', function(fd) {
+		content.forEach(function(item){
+			if(util.isArray(item)){
+				stream.write(item.join(',') + '\n');
+			}else{
+				if (!headers) {
+					headers = Object.keys(item).join(',');
+					stream.write(headers + '\n');
+				}
+				var data = [];
+				for(var i in item){
+					data.push(item[i]);
+				}
+				stream.write(data.join(',') + '\n');
+			}
+		});
+		stream.end();
+	});
+}
+
 function processHeaders(data) { 
 	return data.shift().split(new RegExp(/\s*,\s*/));
 }
@@ -135,7 +206,6 @@ function getContentIfFile(filepath){
     }
 	throw new Error("invalid file path");
 }
-
 
 function outputSave(data){
 	return {
